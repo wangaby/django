@@ -42,6 +42,9 @@ class BaseDatabaseCache(BaseCache):
             _meta = Options(table)
         self.cache_model_class = CacheEntry
 
+        options = params.get('OPTIONS', {})
+        self._cull_on_set = options.get("CULL_ON_SET", True)
+
 
 class DatabaseCache(BaseDatabaseCache):
 
@@ -99,10 +102,12 @@ class DatabaseCache(BaseDatabaseCache):
         table = connections[db].ops.quote_name(self._table)
 
         with connections[db].cursor() as cursor:
-            cursor.execute("SELECT COUNT(*) FROM %s" % table)
-            num = cursor.fetchone()[0]
             now = timezone.now()
             now = now.replace(microsecond=0)
+
+            if self._cull_on_set:
+                self._maybe_cull(db, cursor, table, now)
+
             if timeout is None:
                 exp = datetime.max
             elif settings.USE_TZ:
@@ -110,8 +115,7 @@ class DatabaseCache(BaseDatabaseCache):
             else:
                 exp = datetime.fromtimestamp(timeout)
             exp = exp.replace(microsecond=0)
-            if num > self._max_entries:
-                self._cull(db, cursor, now)
+
             pickled = pickle.dumps(value, pickle.HIGHEST_PROTOCOL)
             b64encoded = base64.b64encode(pickled)
             # The DB column is expecting a string, so make sure the value is a
@@ -175,6 +179,25 @@ class DatabaseCache(BaseDatabaseCache):
                            "WHERE cache_key = %%s and expires > %%s" % table,
                            [key, connections[db].ops.value_to_db_datetime(now)])
             return cursor.fetchone() is not None
+
+    def cull(self):
+        db = router.db_for_write(self.cache_model_class)
+        table = connections[db].ops.quote_name(self._table)
+
+        with connections[db].cursor() as cursor:
+            now = timezone.now()
+            now = now.replace(microsecond=0)
+            self._maybe_cull(db, cursor, table, now)
+
+    def _maybe_cull(self, db, cursor, table, now):
+        table = connections[db].ops.quote_name(self._table)
+        cursor.execute("SELECT COUNT(*) FROM %s" % table)
+        num = cursor.fetchone()[0]
+        now = timezone.now()
+        now = now.replace(microsecond=0)
+
+        if num > self._max_entries:
+            self._cull(db, cursor, now)
 
     def _cull(self, db, cursor, now):
         if self._cull_frequency == 0:

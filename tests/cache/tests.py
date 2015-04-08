@@ -907,11 +907,20 @@ class BaseCacheTests(object):
         self.assertIsNone(cache.get('brian', version=3))
 
 
-@override_settings(CACHES=caches_setting_for_tests(
+DBCaches = caches_setting_for_tests(
     BACKEND='django.core.cache.backends.db.DatabaseCache',
     # Spaces are used in the table name to ensure quoting/escaping is working
     LOCATION='test cache table'
-))
+)
+DBCaches['no_cull_on_set'] = DBCaches['default'].copy()
+DBCaches['no_cull_on_set']['OPTIONS'] = {
+    'CULL_ON_SET': False,
+    'MAX_ENTRIES': 5,
+    'CULL_FREQUENCY': 2
+}
+
+
+@override_settings(CACHES=DBCaches)
 class DBCacheTests(BaseCacheTests, TransactionTestCase):
 
     available_apps = ['cache']
@@ -936,6 +945,30 @@ class DBCacheTests(BaseCacheTests, TransactionTestCase):
 
     def test_zero_cull(self):
         self._perform_cull_test(caches['zero_cull'], 50, 18)
+
+    def test_no_cull_on_set_just_grows(self):
+        cache = caches['no_cull_on_set']
+        for i in range(10):
+            cache.set('cull%s' % i, "value")
+
+        # Count how many keys are left in the cache.
+        count = 0
+        for i in range(10):
+            if cache.has_key('cull%d' % i):
+                count = count + 1
+
+        # None deleted
+        self.assertEqual(count, 10)
+
+        cache.cull()
+
+        # Count how many keys are left in the cache.
+        count = 0
+        for i in range(1, 10):
+            if cache.has_key('cull%d' % i):
+                count = count + 1
+
+        self.assertEqual(count, 5)
 
     def test_second_call_doesnt_crash(self):
         out = six.StringIO()
