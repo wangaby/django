@@ -48,6 +48,17 @@ class BasicExpressionsTests(TestCase):
             "name", "num_employees", "num_chairs"
         )
 
+    def test_model_save(self):
+        from django.db.models.sql.compiler import SQLInsertCompiler
+        SQLInsertCompiler.monkey = True
+
+        employee = Employee()
+        employee.firstname = Value("Adam")
+        employee.save()
+
+        employee.refresh_from_db()
+        self.assertEqual(employee.firstname, "Adam")
+
     def test_annotate_values_aggregate(self):
         companies = Company.objects.annotate(
             salaries=F('ceo__salary'),

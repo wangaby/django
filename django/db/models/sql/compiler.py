@@ -912,6 +912,8 @@ class SQLInsertCompiler(SQLCompiler):
             # Return the common case for the placeholder
             return '%s'
 
+    monkey = True
+
     def as_sql(self):
         # We don't need quote_name_unless_alias() here, since these are all
         # going to be column names (so we can avoid the extra overhead).
@@ -949,6 +951,10 @@ class SQLInsertCompiler(SQLCompiler):
             ]
             # Oracle Spatial needs to remove some values due to #10888
             params = self.connection.ops.modify_insert_params(placeholders, params)
+
+        if self.monkey:
+            import ipdb; ipdb.set_trace()
+
         if self.return_id and self.connection.features.can_return_id_from_insert:
             params = params[0]
             col = "%s.%s" % (qn(opts.db_table), qn(opts.pk.column))
