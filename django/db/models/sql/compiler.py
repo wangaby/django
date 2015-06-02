@@ -912,7 +912,7 @@ class SQLInsertCompiler(SQLCompiler):
             # Return the common case for the placeholder
             return '%s'
 
-    monkey = True
+    monkey = False
 
     def as_sql(self):
         # We don't need quote_name_unless_alias() here, since these are all
@@ -921,12 +921,15 @@ class SQLInsertCompiler(SQLCompiler):
         opts = self.query.get_meta()
         result = ['INSERT INTO %s' % qn(opts.db_table)]
 
+        # We may be trying to create an object that has no fields, in which
+        # case we INSERT just its primary key with the pk_default_value();
+        # otherwise, we have to figure out what values to insert
         has_fields = bool(self.query.fields)
         fields = self.query.fields if has_fields else [opts.pk]
         result.append('(%s)' % ', '.join(qn(f.column) for f in fields))
 
         if has_fields:
-            params = values = [
+            values = [
                 [
                     f.get_db_prep_save(
                         getattr(obj, f.attname) if self.query.raw else f.pre_save(obj, True),
@@ -935,12 +938,22 @@ class SQLInsertCompiler(SQLCompiler):
                 ]
                 for obj in self.query.objs
             ]
+            params = values
         else:
             values = [[self.connection.ops.pk_default_value()] for obj in self.query.objs]
             params = [[]]
             fields = [None]
-        can_bulk = (not any(hasattr(field, "get_placeholder") for field in fields) and
-            not self.return_id and self.connection.features.has_bulk_insert)
+
+        # There are three kinds of insert statement that may be run:
+        # * a single row insert, returning the insert id for the added object
+        # * a many row bulk insert, which saves many rows in one query
+        # * a many row non-bulk insert, when it's not possible or not supported to insert >1 row at a time
+
+        can_bulk = (
+            not any(hasattr(field, "get_placeholder") for field in fields) and
+            not self.return_id and
+            self.connection.features.has_bulk_insert
+        )
 
         if can_bulk:
             placeholders = [["%s"] * len(fields)]
@@ -951,9 +964,6 @@ class SQLInsertCompiler(SQLCompiler):
             ]
             # Oracle Spatial needs to remove some values due to #10888
             params = self.connection.ops.modify_insert_params(placeholders, params)
-
-        if self.monkey:
-            import ipdb; ipdb.set_trace()
 
         if self.return_id and self.connection.features.can_return_id_from_insert:
             params = params[0]
