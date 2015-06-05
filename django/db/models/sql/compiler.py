@@ -931,7 +931,8 @@ class SQLInsertCompiler(SQLCompiler):
         can_bulk = (not self.return_id and self.connection.features.has_bulk_insert)
 
         if has_fields:
-            values = []
+            rows = []
+
             for obj in self.query.objs:
                 objvals = []
                 for field in fields:
@@ -941,11 +942,11 @@ class SQLInsertCompiler(SQLCompiler):
                         objval = field.pre_save(obj, True)
                     objval = field.get_db_prep_save(objval, connection=self.connection)
                     objvals.append(objval)
-                values.append(objvals)
+                rows.append(objvals)
 
-            params = values
+            params = rows
         else:
-            values = [[self.connection.ops.pk_default_value()] for obj in self.query.objs]
+            rows = [[self.connection.ops.pk_default_value()] for obj in self.query.objs]
             params = [[]]
             fields = [None]
 
@@ -963,7 +964,7 @@ class SQLInsertCompiler(SQLCompiler):
         else:
             placeholders = [
                 [self.placeholder(field, v) for field, v in zip(fields, val)]
-                for val in values
+                for val in rows
             ]
             # Oracle Spatial needs to remove some values due to #10888
             params = self.connection.ops.modify_insert_params(placeholders, params)
@@ -980,8 +981,8 @@ class SQLInsertCompiler(SQLCompiler):
                 params += r_params
             return [(" ".join(result), tuple(params))]
         if can_bulk:
-            result.append(self.connection.ops.bulk_insert_sql(fields, len(values)))
-            return [(" ".join(result), tuple(v for val in values for v in val))]
+            result.append(self.connection.ops.bulk_insert_sql(fields, len(rows)))
+            return [(" ".join(result), tuple(v for val in rows for v in val))]
         else:
             return [
                 (" ".join(result + ["VALUES (%s)" % ", ".join(p)]), vals)
