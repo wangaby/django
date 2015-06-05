@@ -928,6 +928,8 @@ class SQLInsertCompiler(SQLCompiler):
         fields = self.query.fields if has_fields else [opts.pk]
         result.append('(%s)' % ', '.join(qn(f.column) for f in fields))
 
+        can_bulk = (not self.return_id and self.connection.features.has_bulk_insert)
+
         if has_fields:
             values = []
             for obj in self.query.objs:
@@ -952,10 +954,8 @@ class SQLInsertCompiler(SQLCompiler):
         # * a many row bulk insert, which saves many rows in one query
         # * a many row non-bulk insert, when it's not possible or not supported to insert >1 row at a time
 
-        can_bulk = (
-            not any(hasattr(field, "get_placeholder") for field in fields) and
-            not self.return_id and
-            self.connection.features.has_bulk_insert
+        can_bulk = can_bulk and (
+            not any(hasattr(field, "get_placeholder") for field in fields)
         )
 
         if can_bulk:
