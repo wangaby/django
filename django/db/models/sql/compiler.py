@@ -960,7 +960,7 @@ class SQLInsertCompiler(SQLCompiler):
         )
 
         if can_bulk:
-            placeholders = [["%s"] * len(fields)]
+            placeholders = None
         else:
             placeholders = [
                 [self.placeholder(field, v) for field, v in zip(fields, val)]
