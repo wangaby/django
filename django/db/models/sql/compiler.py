@@ -929,15 +929,18 @@ class SQLInsertCompiler(SQLCompiler):
         result.append('(%s)' % ', '.join(qn(f.column) for f in fields))
 
         if has_fields:
-            values = [
-                [
-                    f.get_db_prep_save(
-                        getattr(obj, f.attname) if self.query.raw else f.pre_save(obj, True),
-                        connection=self.connection
-                    ) for f in fields
-                ]
-                for obj in self.query.objs
-            ]
+            values = []
+            for obj in self.query.objs:
+                objvals = []
+                for field in fields:
+                    if self.query.raw:
+                        objval = getattr(obj, field.attname)
+                    else:
+                        objval = field.pre_save(obj, True)
+                    objval = field.get_db_prep_save(objval, connection=self.connection)
+                    objvals.append(objval)
+                values.append(objvals)
+
             params = values
         else:
             values = [[self.connection.ops.pk_default_value()] for obj in self.query.objs]
