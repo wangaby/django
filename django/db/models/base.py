@@ -16,7 +16,6 @@ from django.db import (
     DEFAULT_DB_ALIAS, DJANGO_VERSION_PICKLE_KEY, DatabaseError, connection,
     connections, router, transaction,
 )
-from django.db.models import signals
 from django.db.models.constants import LOOKUP_SEP
 from django.db.models.deletion import CASCADE, Collector
 from django.db.models.fields import AutoField
@@ -27,6 +26,9 @@ from django.db.models.fields.related import (
 from django.db.models.manager import Manager
 from django.db.models.options import Options
 from django.db.models.query import Q
+from django.db.models.signals import (
+    class_prepared, post_init, post_save, pre_init, pre_save,
+)
 from django.db.models.utils import make_model_tuple
 from django.utils import six
 from django.utils.deprecation import RemovedInDjango20Warning
@@ -363,7 +365,7 @@ class ModelBase(type):
             manager.auto_created = True
             cls.add_to_class('objects', manager)
 
-        signals.class_prepared.send(sender=cls)
+        class_prepared.send(sender=cls)
 
     def _requires_legacy_default_manager(cls):  # RemovedInDjango20Warning
         opts = cls._meta
@@ -451,6 +453,9 @@ class ModelState(object):
     """
     A class for storing instance state
     """
+
+    __slots__ = ['db', 'adding']
+
     def __init__(self, db=None):
         self.db = db
         # If true, uniqueness validation checks will consider this a new, as-yet-unsaved object.
@@ -458,26 +463,34 @@ class ModelState(object):
         # This impacts validation only; it has no effect on the actual save.
         self.adding = True
 
+    def __getstate__(self):
+        return {'db': self.db, 'adding': self.adding}
+
+    def __setstate__(self, d):
+        self.db = d['db']
+        self.adding = d['adding']
+
 
 class Model(six.with_metaclass(ModelBase)):
 
     def __init__(self, *args, **kwargs):
-        signals.pre_init.send(sender=self.__class__, args=args, kwargs=kwargs)
+        pre_init.send(sender=self.__class__, args=args, kwargs=kwargs)
 
         # Set up the storage for instance state
         self._state = ModelState()
+
+        _meta = self._meta
 
         # There is a rather weird disparity here; if kwargs, it's set, then args
         # overrides it. It should be one or the other; don't duplicate the work
         # The reason for the kwargs check is that standard iterator passes in by
         # args, and instantiation for iteration is 33% faster.
-        args_len = len(args)
-        if args_len > len(self._meta.concrete_fields):
+        if len(args) > len(_meta.concrete_fields):
             # Daft, but matches old exception sans the err msg.
             raise IndexError("Number of args exceeds number of fields")
 
         if not kwargs:
-            fields_iter = iter(self._meta.concrete_fields)
+            fields_iter = iter(_meta.concrete_fields)
             # The ordering of the zip calls matter - zip throws StopIteration
             # when an iter throws it. So if the first iter throws it, the second
             # is *not* consumed. We rely on this, so don't change the order
@@ -488,7 +501,7 @@ class Model(six.with_metaclass(ModelBase)):
                 setattr(self, field.attname, val)
         else:
             # Slower, kwargs-ready version.
-            fields_iter = iter(self._meta.fields)
+            fields_iter = iter(_meta.fields)
             for val, field in zip(args, fields_iter):
                 if val is DEFERRED:
                     continue
@@ -552,7 +565,7 @@ class Model(six.with_metaclass(ModelBase)):
                     # Any remaining kwargs must correspond to properties or
                     # virtual fields.
                     if (isinstance(getattr(self.__class__, prop), property) or
-                            self._meta.get_field(prop)):
+                            _meta.get_field(prop)):
                         if kwargs[prop] is not DEFERRED:
                             setattr(self, prop, kwargs[prop])
                         del kwargs[prop]
@@ -561,7 +574,7 @@ class Model(six.with_metaclass(ModelBase)):
             if kwargs:
                 raise TypeError("'%s' is an invalid keyword argument for this function" % list(kwargs)[0])
         super(Model, self).__init__()
-        signals.post_init.send(sender=self.__class__, instance=self)
+        post_init.send(sender=self.__class__, instance=self)
 
     @classmethod
     def from_db(cls, db, field_names, values):
@@ -823,8 +836,8 @@ class Model(six.with_metaclass(ModelBase)):
             cls = cls._meta.concrete_model
         meta = cls._meta
         if not meta.auto_created:
-            signals.pre_save.send(sender=origin, instance=self, raw=raw, using=using,
-                                  update_fields=update_fields)
+            pre_save.send(sender=origin, instance=self, raw=raw, using=using,
+                          update_fields=update_fields)
         with transaction.atomic(using=using, savepoint=False):
             if not raw:
                 self._save_parents(cls, using, update_fields)
@@ -836,8 +849,8 @@ class Model(six.with_metaclass(ModelBase)):
 
         # Signal that the save is complete
         if not meta.auto_created:
-            signals.post_save.send(sender=origin, instance=self, created=(not updated),
-                                   update_fields=update_fields, raw=raw, using=using)
+            post_save.send(sender=origin, instance=self, created=(not updated),
+                           update_fields=update_fields, raw=raw, using=using)
 
     save_base.alters_data = True
 
