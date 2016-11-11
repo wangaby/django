@@ -761,17 +761,19 @@ class Field(RegisterLookupMixin):
         """
         return self.default is not NOT_PROVIDED
 
+    @cached_property
     def get_default(self):
         """
         Returns the default value for this field.
         """
         if self.has_default():
             if callable(self.default):
-                return self.default()
-            return self.default
+                return self.default
+            return lambda: self.default
+
         if not self.empty_strings_allowed or self.null and not connection.features.interprets_empty_strings_as_nulls:
-            return None
-        return ""
+            return lambda: None
+        return str
 
     def get_choices(self, include_blank=True, blank_choice=BLANK_CHOICE_DASH, limit_choices_to=None):
         """Returns choices with a default blank choices included, for use
