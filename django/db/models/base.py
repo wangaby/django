@@ -483,7 +483,8 @@ class Model(six.with_metaclass(ModelBase)):
         # Alias some things as function locals to avoid repeat global lookups
         cls = self.__class__
         _meta = self._meta
-        setatt = setattr
+        _setattr = setattr
+        _DEFERRED = DEFERRED
 
         pre_init.send(sender=cls, args=args, kwargs=kwargs)
 
@@ -505,16 +506,16 @@ class Model(six.with_metaclass(ModelBase)):
             # is *not* consumed. We rely on this, so don't change the order
             # without changing the logic.
             for val, field in zip(args, fields_iter):
-                if val is DEFERRED:
+                if val is _DEFERRED:
                     continue
-                setatt(self, field.attname, val)
+                _setattr(self, field.attname, val)
         else:
             # Slower, kwargs-ready version.
             fields_iter = iter(_meta.fields)
             for val, field in zip(args, fields_iter):
-                if val is DEFERRED:
+                if val is _DEFERRED:
                     continue
-                setatt(self, field.attname, val)
+                _setattr(self, field.attname, val)
                 kwargs.pop(field.name, None)
                 # Maintain compatibility with existing calls.
                 if isinstance(field.remote_field, ManyToOneRel):
@@ -562,11 +563,11 @@ class Model(six.with_metaclass(ModelBase)):
                 # field.name instead of field.attname (e.g. "user" instead of
                 # "user_id") so that the object gets properly cached (and type
                 # checked) by the RelatedObjectDescriptor.
-                if rel_obj is not DEFERRED:
-                    setatt(self, field.name, rel_obj)
+                if rel_obj is not _DEFERRED:
+                    _setattr(self, field.name, rel_obj)
             else:
-                if val is not DEFERRED:
-                    setatt(self, field.attname, val)
+                if val is not _DEFERRED:
+                    _setattr(self, field.attname, val)
 
         if kwargs:
             for prop in tuple(kwargs):
@@ -574,8 +575,8 @@ class Model(six.with_metaclass(ModelBase)):
                     # Any remaining kwargs must correspond to properties or
                     # virtual fields.
                     if is_property(cls, prop) or _meta.get_field(prop):
-                        if kwargs[prop] is not DEFERRED:
-                            setatt(self, prop, kwargs[prop])
+                        if kwargs[prop] is not _DEFERRED:
+                            _setattr(self, prop, kwargs[prop])
                         del kwargs[prop]
                 except (AttributeError, FieldDoesNotExist):
                     pass
