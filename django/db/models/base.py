@@ -477,6 +477,11 @@ def is_property(cls, name):
     return isinstance(getattr(cls, name), property)
 
 
+@lru_cache(maxsize=100)
+def remote_is_ManyToOneRel(field):
+    return isinstance(field.remote_field, ManyToOneRel)
+
+
 class Model(six.with_metaclass(ModelBase)):
 
     def __init__(self, *args, **kwargs):
@@ -518,7 +523,7 @@ class Model(six.with_metaclass(ModelBase)):
                 _setattr(self, field.attname, val)
                 kwargs.pop(field.name, None)
                 # Maintain compatibility with existing calls.
-                if isinstance(field.remote_field, ManyToOneRel):
+                if remote_is_ManyToOneRel(field):
                     kwargs.pop(field.attname, None)
 
         # Now we're left with the unprocessed fields that *must* come from
