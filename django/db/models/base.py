@@ -480,6 +480,7 @@ class Model(six.with_metaclass(ModelBase)):
         self._state = ModelState()
 
         _meta = self._meta
+        setatt = setattr
 
         # There is a rather weird disparity here; if kwargs, it's set, then args
         # overrides it. It should be one or the other; don't duplicate the work
@@ -498,14 +499,14 @@ class Model(six.with_metaclass(ModelBase)):
             for val, field in zip(args, fields_iter):
                 if val is DEFERRED:
                     continue
-                setattr(self, field.attname, val)
+                setatt(self, field.attname, val)
         else:
             # Slower, kwargs-ready version.
             fields_iter = iter(_meta.fields)
             for val, field in zip(args, fields_iter):
                 if val is DEFERRED:
                     continue
-                setattr(self, field.attname, val)
+                setatt(self, field.attname, val)
                 kwargs.pop(field.name, None)
                 # Maintain compatibility with existing calls.
                 if isinstance(field.remote_field, ManyToOneRel):
@@ -554,10 +555,10 @@ class Model(six.with_metaclass(ModelBase)):
                 # "user_id") so that the object gets properly cached (and type
                 # checked) by the RelatedObjectDescriptor.
                 if rel_obj is not DEFERRED:
-                    setattr(self, field.name, rel_obj)
+                    setatt(self, field.name, rel_obj)
             else:
                 if val is not DEFERRED:
-                    setattr(self, field.attname, val)
+                    setatt(self, field.attname, val)
 
         if kwargs:
             for prop in tuple(kwargs):
@@ -567,7 +568,7 @@ class Model(six.with_metaclass(ModelBase)):
                     if (isinstance(getattr(self.__class__, prop), property) or
                             _meta.get_field(prop)):
                         if kwargs[prop] is not DEFERRED:
-                            setattr(self, prop, kwargs[prop])
+                            setatt(self, prop, kwargs[prop])
                         del kwargs[prop]
                 except (AttributeError, FieldDoesNotExist):
                     pass
