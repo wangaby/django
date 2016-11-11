@@ -482,6 +482,11 @@ def _remote_is_ManyToOneRel(field):
     return isinstance(field.remote_field, ManyToOneRel)
 
 
+@lru_cache(maxsize=100)
+def _remote_is_ForeignObjectRel(field):
+    return isinstance(field.remote_field, ForeignObjectRel)
+
+
 class Model(six.with_metaclass(ModelBase)):
 
     def __init__(self, *args, **kwargs):
@@ -535,7 +540,7 @@ class Model(six.with_metaclass(ModelBase)):
             if field.attname not in kwargs and field.column is None:
                 continue
             if kwargs:
-                if isinstance(field.remote_field, ForeignObjectRel):
+                if _remote_is_ForeignObjectRel(field):
                     try:
                         # Assume object instance was passed in.
                         rel_obj = kwargs.pop(field.name)
