@@ -36,6 +36,7 @@ from django.utils.encoding import (
     force_str, force_text, python_2_unicode_compatible,
 )
 from django.utils.functional import curry
+from django.utils.lru_cache import lru_cache
 from django.utils.six.moves import zip
 from django.utils.text import capfirst, get_text_list
 from django.utils.translation import ugettext_lazy as _
@@ -471,6 +472,11 @@ class ModelState(object):
         self.adding = d['adding']
 
 
+@lru_cache(maxsize=100)
+def is_property(cls, name):
+    return isinstance(getattr(cls, name), property)
+
+
 class Model(six.with_metaclass(ModelBase)):
 
     def __init__(self, *args, **kwargs):
@@ -567,8 +573,7 @@ class Model(six.with_metaclass(ModelBase)):
                 try:
                     # Any remaining kwargs must correspond to properties or
                     # virtual fields.
-                    if (isinstance(getattr(cls, prop), property) or
-                            _meta.get_field(prop)):
+                    if is_property(cls, prop) or _meta.get_field(prop):
                         if kwargs[prop] is not DEFERRED:
                             setatt(self, prop, kwargs[prop])
                         del kwargs[prop]
