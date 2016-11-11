@@ -474,13 +474,15 @@ class ModelState(object):
 class Model(six.with_metaclass(ModelBase)):
 
     def __init__(self, *args, **kwargs):
-        pre_init.send(sender=self.__class__, args=args, kwargs=kwargs)
+        # Alias some things as function locals to avoid repeat global lookups
+        cls = self.__class__
+        _meta = self._meta
+        setatt = setattr
+
+        pre_init.send(sender=cls, args=args, kwargs=kwargs)
 
         # Set up the storage for instance state
         self._state = ModelState()
-
-        _meta = self._meta
-        setatt = setattr
 
         # There is a rather weird disparity here; if kwargs, it's set, then args
         # overrides it. It should be one or the other; don't duplicate the work
@@ -565,7 +567,7 @@ class Model(six.with_metaclass(ModelBase)):
                 try:
                     # Any remaining kwargs must correspond to properties or
                     # virtual fields.
-                    if (isinstance(getattr(self.__class__, prop), property) or
+                    if (isinstance(getattr(cls, prop), property) or
                             _meta.get_field(prop)):
                         if kwargs[prop] is not DEFERRED:
                             setatt(self, prop, kwargs[prop])
@@ -575,7 +577,7 @@ class Model(six.with_metaclass(ModelBase)):
             if kwargs:
                 raise TypeError("'%s' is an invalid keyword argument for this function" % list(kwargs)[0])
         super(Model, self).__init__()
-        post_init.send(sender=self.__class__, instance=self)
+        post_init.send(sender=cls, instance=self)
 
     @classmethod
     def from_db(cls, db, field_names, values):
