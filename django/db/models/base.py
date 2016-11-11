@@ -473,12 +473,12 @@ class ModelState(object):
 
 
 @lru_cache(maxsize=100)
-def is_property(cls, name):
+def _is_property(cls, name):
     return isinstance(getattr(cls, name), property)
 
 
 @lru_cache(maxsize=100)
-def remote_is_ManyToOneRel(field):
+def _remote_is_ManyToOneRel(field):
     return isinstance(field.remote_field, ManyToOneRel)
 
 
@@ -523,7 +523,7 @@ class Model(six.with_metaclass(ModelBase)):
                 _setattr(self, field.attname, val)
                 kwargs.pop(field.name, None)
                 # Maintain compatibility with existing calls.
-                if remote_is_ManyToOneRel(field):
+                if _remote_is_ManyToOneRel(field):
                     kwargs.pop(field.attname, None)
 
         # Now we're left with the unprocessed fields that *must* come from
@@ -579,7 +579,7 @@ class Model(six.with_metaclass(ModelBase)):
                 try:
                     # Any remaining kwargs must correspond to properties or
                     # virtual fields.
-                    if is_property(cls, prop) or _meta.get_field(prop):
+                    if _is_property(cls, prop) or _meta.get_field(prop):
                         if kwargs[prop] is not _DEFERRED:
                             _setattr(self, prop, kwargs[prop])
                         del kwargs[prop]
