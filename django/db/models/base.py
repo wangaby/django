@@ -560,7 +560,7 @@ class Model(six.with_metaclass(ModelBase)):
                     setattr(self, field.attname, val)
 
         if kwargs:
-            for prop in list(kwargs):
+            for prop in tuple(kwargs):
                 try:
                     # Any remaining kwargs must correspond to properties or
                     # virtual fields.
