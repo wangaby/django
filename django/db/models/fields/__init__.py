@@ -91,6 +91,10 @@ def _empty(of_cls):
     return new
 
 
+def return_None():
+    return None
+
+
 @total_ordering
 @python_2_unicode_compatible
 class Field(RegisterLookupMixin):
@@ -772,8 +776,8 @@ class Field(RegisterLookupMixin):
             return lambda: self.default
 
         if not self.empty_strings_allowed or self.null and not connection.features.interprets_empty_strings_as_nulls:
-            return lambda: None
-        return str
+            return return_None
+        return six.text_type  # returns empty string
 
     def get_choices(self, include_blank=True, blank_choice=BLANK_CHOICE_DASH, limit_choices_to=None):
         """Returns choices with a default blank choices included, for use
