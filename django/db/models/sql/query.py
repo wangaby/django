@@ -283,7 +283,8 @@ class Query(object):
         else:
             obj.group_by = self.group_by[:]
         obj.order_by = self.order_by[:]
-        obj.low_mark, obj.high_mark = self.low_mark, self.high_mark
+        obj.low_mark = self.low_mark
+        obj.high_mark = self.high_mark
         obj.distinct = self.distinct
         obj.distinct_fields = self.distinct_fields[:]
         obj.select_for_update = self.select_for_update
