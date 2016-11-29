@@ -6,7 +6,6 @@ themselves do not have to (and could be backed by things other than SQL
 databases). The abstraction barrier only works one way: this module has to know
 all about the internals of models in order to get the information it needs.
 """
-import copy
 import warnings
 from collections import Counter, Iterator, Mapping, OrderedDict
 from itertools import chain, count, product
@@ -314,7 +313,7 @@ class Query(object):
             obj._extra_select_cache = self._extra_select_cache.copy()
         obj.extra_tables = self.extra_tables
         obj.extra_order_by = self.extra_order_by
-        obj.deferred_loading = copy.copy(self.deferred_loading[0]), self.deferred_loading[1]
+        obj.deferred_loading = self.deferred_loading[0].copy(), self.deferred_loading[1]
         if self.filter_is_sticky and self.used_aliases:
             obj.used_aliases = self.used_aliases.copy()
         else:
