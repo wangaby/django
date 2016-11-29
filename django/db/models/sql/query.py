@@ -122,6 +122,9 @@ class Query(object):
     subq_aliases = frozenset([alias_prefix])
     query_terms = QUERY_TERMS
 
+    # Arbitrary limit for select_related to prevent infinite recursion.
+    max_depth = 5
+
     compiler = 'SQLCompiler'
 
     def __init__(self, model, where=WhereNode):
@@ -171,8 +174,6 @@ class Query(object):
         self.select_for_update_skip_locked = False
 
         self.select_related = False
-        # Arbitrary limit for select_related to prevents infinite recursion.
-        self.max_depth = 5
 
         # Holds the selects defined by a call to values() or values_list()
         # excluding annotation_select and extra_select.
@@ -302,7 +303,6 @@ class Query(object):
         # It will get re-populated in the cloned queryset the next time it's
         # used.
         obj._annotation_select_cache = None
-        obj.max_depth = self.max_depth
         obj._extra = self._extra.copy() if self._extra is not None else None
         if self.extra_select_mask is None:
             obj.extra_select_mask = None
