@@ -70,9 +70,11 @@ class WhereNode(tree.Node):
         result = []
         result_params = []
         if self.connector == AND:
-            full_needed, empty_needed = len(self.children), 1
+            full_needed = len(self.children)
+            empty_needed = 1
         else:
-            full_needed, empty_needed = 1, len(self.children)
+            full_needed = 1
+            empty_needed = len(self.children)
 
         for child in self.children:
             try:
