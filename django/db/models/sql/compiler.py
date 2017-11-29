@@ -262,12 +262,13 @@ class SQLCompiler:
         can add aliases to clauses that do not yet have one, or it can
         add totally new select clauses).
         """
+        opts = self.query.get_meta()
         if self.query.extra_order_by:
             ordering = self.query.extra_order_by
         elif not self.query.default_ordering:
             ordering = self.query.order_by
         else:
-            ordering = (self.query.order_by or self.query.get_meta().ordering or [])
+            ordering = (self.query.order_by or opts.ordering or [])
         if self.query.standard_ordering:
             asc, desc = ORDER_DIR['ASC']
         else:
@@ -316,8 +317,7 @@ class SQLCompiler:
             if not self.query._extra or col not in self.query._extra:
                 # 'col' is of the form 'field' or 'field1__field2' or
                 # '-field1__field2__field', etc.
-                order_by.extend(self.find_ordering_name(
-                    field, self.query.get_meta(), default_order=asc))
+                order_by.extend(self.find_ordering_name(field, opts, default_order=asc))
             else:
                 if col not in self.query.extra_select:
                     order_by.append((
