@@ -331,6 +331,11 @@ Migrations
 * Migrations are now loaded also from directories without ``__init__.py``
   files.
 
+* Migration operations may now implement a ``suggest_migration_name()`` method
+  that returns a string that will be used to name a migration containing only
+  that operation. Name suggestions have been added for more of Django's
+  built-in operations.
+
 Models
 ~~~~~~
 

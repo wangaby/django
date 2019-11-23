@@ -79,6 +79,13 @@ class Operation:
         """
         return "%s: %s" % (self.__class__.__name__, self._constructor_args)
 
+    def suggest_migration_name(self):
+        """
+        Return a filename part suitable for automatically naming a migration
+        containing this operation, or None if not applicable.
+        """
+        return None
+
     def references_model(self, name, app_label):
         """
         Return True if there is a chance this operation references the given

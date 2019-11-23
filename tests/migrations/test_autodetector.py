@@ -6,13 +6,13 @@ from django.apps import apps
 from django.conf import settings
 from django.contrib.auth.models import AbstractBaseUser
 from django.core.validators import RegexValidator, validate_slug
-from django.db import connection, models
+from django.db import connection, migrations, models
 from django.db.migrations.autodetector import MigrationAutodetector
 from django.db.migrations.graph import MigrationGraph
 from django.db.migrations.loader import MigrationLoader
 from django.db.migrations.questioner import MigrationQuestioner
 from django.db.migrations.state import ModelState, ProjectState
-from django.test import TestCase, override_settings
+from django.test import SimpleTestCase, TestCase, override_settings
 from django.test.utils import isolate_lru_cache
 
 from .models import FoodManager, FoodQuerySet
@@ -464,9 +464,9 @@ class AutodetectorTests(TestCase):
 
     def repr_changes(self, changes, include_dependencies=False):
         output = ""
-        for app_label, migrations in sorted(changes.items()):
+        for app_label, migrations_ in sorted(changes.items()):
             output += "  %s:\n" % app_label
-            for migration in migrations:
+            for migration in migrations_:
                 output += "    %s\n" % migration.name
                 for operation in migration.operations:
                     output += "      %s\n" % operation
@@ -2454,3 +2454,21 @@ class AutodetectorTests(TestCase):
         self.assertNumberMigrations(changes, 'app', 1)
         self.assertOperationTypes(changes, 'app', 0, ['DeleteModel'])
         self.assertOperationAttributes(changes, 'app', 0, 0, name='Dog')
+
+
+class AutodetectorSuggestNameTests(SimpleTestCase):
+
+    def test_single_create_model(self):
+        ops = [migrations.CreateModel('Foo', [])]
+        name = MigrationAutodetector.suggest_name(ops)
+        self.assertEqual(name, "foo")
+
+    def test_two_create_models(self):
+        ops = [migrations.CreateModel('Foo', []), migrations.CreateModel('Bar', [])]
+        name = MigrationAutodetector.suggest_name(ops)
+        self.assertEqual(name, "bar_foo")
+
+    def test_auto(self):
+        ops = []
+        name = MigrationAutodetector.suggest_name(ops)
+        self.assertTrue(name.startswith("auto_"))

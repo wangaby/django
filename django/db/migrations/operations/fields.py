@@ -116,6 +116,9 @@ class AddField(FieldOperation):
     def describe(self):
         return "Add field %s to %s" % (self.name, self.model_name)
 
+    def suggest_migration_name(self):
+        return "%s_%s" % (self.model_name_lower, self.name_lower)
+
     def reduce(self, operation, app_label):
         if isinstance(operation, FieldOperation) and self.is_same_field_operation(operation):
             if isinstance(operation, AlterField):
@@ -173,6 +176,9 @@ class RemoveField(FieldOperation):
 
     def describe(self):
         return "Remove field %s from %s" % (self.name, self.model_name)
+
+    def suggest_migration_name(self):
+        return "remove_%s_%s" % (self.model_name_lower, self.name_lower)
 
     def reduce(self, operation, app_label):
         from .models import DeleteModel
@@ -242,6 +248,9 @@ class AlterField(FieldOperation):
 
     def describe(self):
         return "Alter field %s on %s" % (self.name, self.model_name)
+
+    def suggest_migration_name(self):
+        return "alter_%s_%s" % (self.model_name_lower, self.name_lower)
 
     def reduce(self, operation, app_label):
         if isinstance(operation, RemoveField) and self.is_same_field_operation(operation):
@@ -353,6 +362,9 @@ class RenameField(FieldOperation):
 
     def describe(self):
         return "Rename field %s on %s to %s" % (self.old_name, self.model_name, self.new_name)
+
+    def suggest_migration_name(self):
+        return "rename_%s_%s_%s" % (self.model_name_lower, self.old_name_lower, self.new_name_lower)
 
     def references_field(self, model_name, name, app_label):
         return self.references_model(model_name, app_label) and (
