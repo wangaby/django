@@ -1,3 +1,4 @@
+import pickle
 import unittest
 
 from django.test import SimpleTestCase
@@ -51,6 +52,39 @@ class SampleFailingSubtest(SimpleTestCase):
 
 
 class RemoteTestResultTest(SimpleTestCase):
+
+    def test_was_successful_no_events(self):
+        result = RemoteTestResult()
+        self.assertTrue(result.wasSuccessful())
+
+    def test_was_successful_one_success(self):
+        result = RemoteTestResult()
+        result.addSuccess(None)
+        self.assertTrue(result.wasSuccessful())
+
+    def test_was_successful_one_expected_failure(self):
+        result = RemoteTestResult()
+        result.addExpectedFailure(None, ValueError("woops"))
+        self.assertTrue(result.wasSuccessful())
+
+    def test_was_successful_one_skip(self):
+        result = RemoteTestResult()
+        result.addSkip(None, "Skipped")
+        self.assertTrue(result.wasSuccessful())
+
+    def test_was_successful_one_error(self):
+        result = RemoteTestResult()
+        result.addError(None, ValueError("woops"))
+        self.assertFalse(result.wasSuccessful())
+
+    def test_was_successful_one_failure(self):
+        result = RemoteTestResult()
+        result.addFailure(None, ValueError("woops"))
+        self.assertFalse(result.wasSuccessful())
+
+    def test_picklable(self):
+        result = RemoteTestResult()
+        pickle.loads(pickle.dumps(result))
 
     def test_pickle_errors_detection(self):
         picklable_error = RuntimeError('This is fine')
