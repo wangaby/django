@@ -325,6 +325,12 @@ scenes.
 
 If ``True``, a database index will be created for this field.
 
+.. admonition:: Use the :attr:`~Options.indexes` option instead.
+
+    The :attr:`Meta.indexes <Options.indexes>` option provides more
+    functionality than ``db_index``. ``db_index`` may be deprecated in the
+    future.
+
 ``db_tablespace``
 -----------------
 
