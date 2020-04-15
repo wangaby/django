@@ -10,6 +10,7 @@ from django.db import connection, migrations, models
 from django.db.migrations.autodetector import MigrationAutodetector
 from django.db.migrations.graph import MigrationGraph
 from django.db.migrations.loader import MigrationLoader
+from django.db.migrations.operations.base import Operation
 from django.db.migrations.questioner import MigrationQuestioner
 from django.db.migrations.state import ModelState, ProjectState
 from django.test import SimpleTestCase, TestCase, override_settings
@@ -2458,17 +2459,51 @@ class AutodetectorTests(TestCase):
 
 class AutodetectorSuggestNameTests(SimpleTestCase):
 
+    def test_empty(self):
+        ops = []
+        name = MigrationAutodetector.suggest_name(ops)
+        self.assertTrue(name.startswith("auto_"))
+
+    def test_single_custom_operation_no_suggested_name_method(self):
+        class NoSuggestionOperation(Operation):
+            pass
+
+        ops = [NoSuggestionOperation()]
+        name = MigrationAutodetector.suggest_name(ops)
+        self.assertTrue(name.startswith("auto_"))
+
+    def test_single_custom_operation_empty_suggested_name(self):
+        class BlankOperation(Operation):
+            def suggest_migration_name(self):
+                return ""
+
+        ops = [BlankOperation()]
+        name = MigrationAutodetector.suggest_name(ops)
+        self.assertTrue(name.startswith("auto_"))
+
     def test_single_create_model(self):
         ops = [migrations.CreateModel('Foo', [])]
         name = MigrationAutodetector.suggest_name(ops)
         self.assertEqual(name, "foo")
 
+    def test_single_create_very_long_model(self):
+        ops = [migrations.CreateModel('A' * 45, [])]
+        name = MigrationAutodetector.suggest_name(ops)
+        self.assertEqual(name, "a" * 45)
+
     def test_two_create_models(self):
         ops = [migrations.CreateModel('Foo', []), migrations.CreateModel('Bar', [])]
         name = MigrationAutodetector.suggest_name(ops)
-        self.assertEqual(name, "bar_foo")
+        self.assertEqual(name, "foo_bar")
 
-    def test_auto(self):
-        ops = []
+    def test_many_long_create_models(self):
+        ops = 10 * [
+            migrations.CreateModel('Foozle', []),
+            migrations.CreateModel('Barzle', []),
+            migrations.CreateModel('Bazzle', []),
+        ]
         name = MigrationAutodetector.suggest_name(ops)
-        self.assertTrue(name.startswith("auto_"))
+        self.assertEqual(
+            name,
+            "foozle_barzle_bazzle_foozle_barzle_bazzle",
+        )

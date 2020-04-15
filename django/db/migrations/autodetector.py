@@ -1304,15 +1304,18 @@ class MigrationAutodetector:
         represent. Names are not guaranteed to be unique, but put some effort
         into the fallback name to avoid VCS conflicts if possible.
         """
-        name = None
-        if len(ops) == 1:
-            name = ops[0].suggest_migration_name()
-        elif len(ops) > 1 and all(isinstance(o, operations.CreateModel) for o in ops):
-            name = "_".join(sorted(o.name_lower for o in ops))
+        raw_suggested_names = (op.suggest_migration_name() for op in ops)
+        suggested_names = [name for name in raw_suggested_names if name]
 
-        if name is None:
-            name = "auto_%s" % get_migration_name_timestamp()
+        if not suggested_names:
+            return f"auto_{get_migration_name_timestamp()}"
 
+        name = suggested_names[0]
+        for suggested_name in suggested_names[1:]:
+            new_name = name + f'_{suggested_name}'
+            if len(new_name) > 42:
+                break
+            name = new_name
         return name
 
     @classmethod
