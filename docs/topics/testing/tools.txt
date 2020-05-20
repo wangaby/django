@@ -1687,6 +1687,45 @@ your test suite.
             Person.objects.create(name="Aaron")
             Person.objects.create(name="Daniel")
 
+.. method:: TestCase.captureOnCommitCallbacks(self, *, using="default", execute=False)
+
+    .. versionadded:: 3.2
+
+    Returns a context manager that captures
+    :func:`transaction.on_commit() <django.db.transaction.on_commit>` callbacks
+    for the given database connection. It returns a list that contains, on exit
+    of the context, the captured callback functions. From this list you can
+    make assertions on the callbacks or call them to invoke their side effects,
+    emulating a commit.
+
+    ``using`` is the alias of the database connection to capture callbacks for.
+
+    ``execute`` specifies whether to call all the callbacks automatically as
+    the context manager exits, if no exception occurred. This emulates a
+    commit after the wrapped block of code.
+
+    Example usage:
+
+    .. code-block:: python
+
+        from django.core import mail
+        from django.test import TestCase
+
+
+        class ContactTests(TestCase):
+            def test_post(self):
+                with self.captureOnCommitCallbacks(execute=True) as callbacks:
+                    response = self.client.post(
+                        "/contact/",
+                        {"message": "I like your site"},
+                    )
+
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(len(callbacks), 1)
+                self.assertEqual(len(mail.outbox), 1)
+                self.assertEqual(mail.outbox[0].subject, "Contact Form")
+                self.assertEqual(mail.outbox[0].body, "I like your site")
+
 .. _topics-tagging-tests:
 
 Tagging tests

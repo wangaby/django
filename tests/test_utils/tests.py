@@ -9,7 +9,8 @@ from django.contrib.staticfiles.finders import get_finder, get_finders
 from django.contrib.staticfiles.storage import staticfiles_storage
 from django.core.exceptions import ImproperlyConfigured
 from django.core.files.storage import default_storage
-from django.db import connection, connections, models, router
+from django.db import connection, connections, models, router, transaction
+from django.db.utils import IntegrityError
 from django.forms import EmailField, IntegerField
 from django.http import HttpResponse
 from django.template.loader import render_to_string
@@ -1271,6 +1272,57 @@ class TestBadSetUpTestData(TestCase):
         # setUpTestData() should call _rollback_atomics() so that the
         # transaction doesn't leak.
         self.assertFalse(self._in_atomic_block)
+
+
+class CaptureOnCommitCallbacksTests(TestCase):
+
+    databases = {"default", "other"}
+
+    callback_called = False
+
+    def enqueue_callback(self, using="default"):
+
+        def hook():
+            self.callback_called = True
+
+        transaction.on_commit(hook, using=using)
+
+    def test_no_arguments(self):
+        with self.captureOnCommitCallbacks() as callbacks:
+            self.enqueue_callback()
+
+        self.assertEqual(len(callbacks), 1)
+        self.assertFalse(self.callback_called)
+        callbacks[0]()
+        self.assertTrue(self.callback_called)
+
+    def test_using(self):
+        with self.captureOnCommitCallbacks(using="other") as callbacks:
+            self.enqueue_callback(using="other")
+
+        self.assertEqual(len(callbacks), 1)
+        self.assertFalse(self.callback_called)
+        callbacks[0]()
+        self.assertTrue(self.callback_called)
+
+    def test_execute(self):
+        with self.captureOnCommitCallbacks(execute=True) as callbacks:
+            self.enqueue_callback()
+
+        self.assertEqual(len(callbacks), 1)
+        self.assertTrue(self.callback_called)
+
+    def test_with_rolled_back_savepoint(self):
+        with self.captureOnCommitCallbacks() as callbacks:
+            try:
+                with transaction.atomic():
+                    self.enqueue_callback()
+                    raise IntegrityError()
+            except IntegrityError:
+                # Inner transaction.atomic() has been rolled back.
+                pass
+
+        self.assertEqual(callbacks, [])
 
 
 class DisallowedDatabaseQueriesTests(SimpleTestCase):
