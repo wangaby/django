@@ -1818,6 +1818,12 @@ that control how the relationship functions.
     :ref:`extra data with a many-to-many relationship
     <intermediary-manytomany>`.
 
+    Note that you should add a
+    :class:`~django.db.models.constraints.UniqueConstraint` including the from
+    and to fields if you don't want multiple associations between the same
+    instances to be possible. Django's automatically generated table includes
+    such a constraint.
+
     .. note::
 
         Recursive relationships using an intermediary model and defined as
@@ -1851,7 +1857,9 @@ that control how the relationship functions.
       points (i.e. the target model instance).
 
     This class can be used to query associated records for a given model
-    instance like a normal model.
+    instance like a normal model::
+
+        Model.m2mfield.through.objects.all()
 
 .. attribute:: ManyToManyField.through_fields
 
